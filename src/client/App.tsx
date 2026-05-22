@@ -12,14 +12,29 @@ export default function App() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedApp, setSelectedApp] = useState<'claude' | 'codex'>('claude');
   const [preview, setPreview] = useState<ConfigPreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadProviders();
   }, [selectedApp]);
 
   const loadProviders = async () => {
-    const data = await fetchProviders(selectedApp);
-    setProviders(data);
+    try {
+      setError(null);
+      const data = await fetchProviders(selectedApp);
+      setProviders(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load providers');
+    }
+  };
+
+  const runAction = async (action: () => Promise<void>) => {
+    try {
+      setError(null);
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Action failed');
+    }
   };
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -34,9 +49,11 @@ export default function App() {
       model: formData.get('model') as string,
       authMode: 'header',
     };
-    await createProvider(data);
-    loadProviders();
-    e.currentTarget.reset();
+    await runAction(async () => {
+      await createProvider(data);
+      await loadProviders();
+      e.currentTarget.reset();
+    });
   };
 
   return (
@@ -60,6 +77,8 @@ export default function App() {
       </header>
 
       <main>
+        {error && <div className="warning"><strong>Error:</strong> {error}</div>}
+
         <section className="form-section">
           <h2>Add Provider</h2>
           <form onSubmit={handleCreate}>
@@ -83,11 +102,11 @@ export default function App() {
               <li key={p.id}>
                 <span>{p.name} ({p.model})</span>
                 <div>
-                  <button onClick={async () => setPreview(await getPreview(p.id))}>Preview</button>
-                  <button onClick={async () => { await enableProvider(p.id); loadProviders(); }}>
+                  <button onClick={() => runAction(async () => setPreview(await getPreview(p.id)))}>Preview</button>
+                  <button onClick={() => runAction(async () => { await enableProvider(p.id); await loadProviders(); })}>
                     {p.enabled ? 'Enabled' : 'Enable'}
                   </button>
-                  <button onClick={async () => { await deleteProvider(p.id); loadProviders(); }}>Delete</button>
+                  <button onClick={() => runAction(async () => { await deleteProvider(p.id); await loadProviders(); })}>Delete</button>
                 </div>
               </li>
             ))}
