@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-test/
+.env
+.env.*
+!.env.example
+data/providers.json
+data/backups/
+.DS_Store
+
+.omx/
